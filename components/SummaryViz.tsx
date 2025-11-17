@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Label
+  BarChart, Bar, XAxis, YAxis, CartesianGrid
 } from 'recharts';
 import { AnalysisResult, Sentiment } from '../types';
 
@@ -16,6 +16,7 @@ const COLORS = {
 };
 
 type ChartType = 'pie' | 'bar' | 'histogram';
+
 
 const SummaryViz: React.FC<SummaryVizProps> = ({ results }) => {
   const [chartType, setChartType] = useState<ChartType>('pie');
@@ -33,21 +34,23 @@ const SummaryViz: React.FC<SummaryVizProps> = ({ results }) => {
   }, [results]);
 
   const confidenceHistogramData = useMemo(() => {
-      const binCount = 10;
-      const bins = Array.from({ length: binCount }, (_, i) => ({
-        name: `${(i * 10)}%-${((i + 1) * 10)}%`,
-        count: 0,
-      }));
+    // Create 10 bins for confidence scores from 0-100%
+    const bins = Array.from({ length: 10 }, (_, i) => ({
+      name: `${i * 10}`, // Use starting percentage for cleaner labels
+      Frequency: 0,
+    }));
 
-      results.forEach(result => {
-        // handle confidence of 1.0 correctly
-        const binIndex = Math.min(Math.floor(result.confidence * binCount), binCount - 1);
-        if (bins[binIndex]) {
-          bins[binIndex].count++;
-        }
-      });
-      return bins;
-    }, [results]);
+    // Group results into bins based on their confidence score
+    results.forEach(result => {
+      const confidencePercent = result.confidence * 100;
+      // Handle the edge case of 100% confidence
+      const binIndex = Math.min(Math.floor(confidencePercent / 10), 9);
+      bins[binIndex].Frequency++;
+    });
+    
+    return bins;
+  }, [results]);
+
 
   const getButtonClass = (type: ChartType) => {
     const baseClasses = "px-3 py-1 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-colors";
@@ -73,7 +76,7 @@ const SummaryViz: React.FC<SummaryVizProps> = ({ results }) => {
                     nameKey="name"
                     label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
                         if (percent === 0) return null;
-                        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                        const radius = innerRadius + (outerRadius - innerRadius) * 0.6;
                         const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
                         const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
                         return (
@@ -89,29 +92,29 @@ const SummaryViz: React.FC<SummaryVizProps> = ({ results }) => {
                   </Pie>
                   <Tooltip
                      contentStyle={{
-                        backgroundColor: 'rgba(31, 41, 55, 0.8)', // gray-800 with opacity
-                        borderColor: '#4B5563', // gray-600
+                        backgroundColor: 'rgba(31, 41, 55, 0.9)',
+                        borderColor: '#4B5563',
                         borderRadius: '0.5rem'
                      }}
-                     itemStyle={{ color: '#F9FAFB' }} // gray-50
+                     itemStyle={{ color: '#F9FAFB' }}
                   />
                   <Legend />
                 </PieChart>
             );
         case 'bar':
-            return (
+             return (
                 <BarChart data={sentimentDistributionData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.3} />
-                  <XAxis dataKey="name" />
-                  <YAxis allowDecimals={false} />
+                  <XAxis dataKey="name" tick={{ fill: 'currentColor' }} />
+                  <YAxis allowDecimals={false} tick={{ fill: 'currentColor' }} />
                   <Tooltip
                      contentStyle={{
-                        backgroundColor: 'rgba(31, 41, 55, 0.8)',
+                        backgroundColor: 'rgba(31, 41, 55, 0.9)',
                         borderColor: '#4B5563',
                         borderRadius: '0.5rem'
                      }}
                      itemStyle={{ color: '#F9FAFB' }}
-                     cursor={{fill: 'rgba(128, 128, 128, 0.1)'}}
+                     cursor={{fill: 'rgba(128, 128, 128, 0.2)'}}
                   />
                   <Legend />
                   <Bar dataKey="value" name="Count">
@@ -123,24 +126,31 @@ const SummaryViz: React.FC<SummaryVizProps> = ({ results }) => {
             );
         case 'histogram':
             return (
-                <BarChart data={confidenceHistogramData} margin={{ top: 5, right: 20, left: -10, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.3} />
-                    <XAxis dataKey="name">
-                         <Label value="Confidence Score" offset={-15} position="insideBottom" />
-                    </XAxis>
-                    <YAxis allowDecimals={false}>
-                        <Label value="Count" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
-                    </YAxis>
-                    <Tooltip
-                        contentStyle={{
-                            backgroundColor: 'rgba(31, 41, 55, 0.8)',
-                            borderColor: '#4B5563',
-                            borderRadius: '0.5rem'
-                        }}
-                        itemStyle={{ color: '#F9FAFB' }}
-                        cursor={{fill: 'rgba(128, 128, 128, 0.1)'}}
-                    />
-                    <Bar dataKey="count" fill="#8884d8" name="Frequency" />
+                <BarChart data={confidenceHistogramData} margin={{ top: 5, right: 20, left: 20, bottom: 40 }} barCategoryGap="20%">
+                  <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.3} />
+                   <XAxis 
+                    dataKey="name" 
+                    unit="%" 
+                    tick={{ fill: 'currentColor', fontSize: 12 }} 
+                    interval={1}
+                    height={50}
+                    label={{ value: 'Confidence Score', position: 'insideBottom', offset: -20, fill: 'currentColor' }}
+                  />
+                  <YAxis 
+                    allowDecimals={false} 
+                    tick={{ fill: 'currentColor' }} 
+                    label={{ value: 'Frequency', angle: -90, position: 'insideLeft', fill: 'currentColor', style: {textAnchor: 'middle'} }}
+                  />
+                  <Tooltip
+                     contentStyle={{
+                        backgroundColor: 'rgba(31, 41, 55, 0.9)',
+                        borderColor: '#4B5563',
+                        borderRadius: '0.5rem'
+                     }}
+                     itemStyle={{ color: '#F9FAFB' }}
+                     cursor={{fill: 'rgba(128, 128, 128, 0.2)'}}
+                  />
+                  <Bar dataKey="Frequency" fill="#60A5FA" />
                 </BarChart>
             );
         default:
